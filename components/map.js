@@ -1,27 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import MapView, { Marker } from 'react-native-maps';
 import { StyleSheet, View } from 'react-native';
+import { db } from '../firebase.js';
+import { ref, onValue } from 'firebase/database';
 
 export default function MapComponent() {
-  const [coordinates, setCoordinates] = useState(null);
+  const [routes, setRoutes] = useState([]);
 
   useEffect(() => {
-    const fetchCoordinates = async () => {
+    const fetchRoutes = async () => {
       try {
-        const response = await fetch('https://gpstracking-c79db-default-rtdb.firebaseio.com/.json');
-        const { lat, lng } = await response.json();
-        if (lat !== undefined && lng !== undefined) {
-          setCoordinates({
-            latitude: lat,
-            longitude: lng,
-          });
-        }
+        const routesRef = ref(db, 'routes');
+        onValue(routesRef, (snapshot) => {
+          const data = snapshot.val();
+          console.log('Fetched routes:', data); 
+          if (data) {
+            setRoutes(Object.values(data));
+          }
+        });
       } catch (error) {
-        console.error('Error fetching coordinates:', error);
+        console.error('Error fetching routes:', error);
       }
     };
 
-    fetchCoordinates();
+    fetchRoutes();
   }, []);
 
   return (
@@ -29,23 +31,27 @@ export default function MapComponent() {
       <MapView
         style={styles.map}
         initialRegion={{
-          latitude: coordinates ? coordinates.latitude : 0,
-          longitude: coordinates ? coordinates.longitude : 0,
-          latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+          latitude: 15.3527, // Initial latitude for centering the map
+          longitude: 75.1266, // Initial longitude for centering the map
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
         }}
-        
       >
-        {coordinates && (
-         <Marker
-         coordinate={{
-           latitude: coordinates ? coordinates.latitude : 0,
-           longitude: coordinates ? coordinates.longitude : 0,
-         }}
-         title="Location"
-         description={`Latitude: ${coordinates ? coordinates.latitude : 0}, Longitude: ${coordinates ? coordinates.longitude : 0}`}
-       />
-        )}
+        {routes.map((route, index) => (
+          route.points && (
+            Object.values(route.points).map((point, index) => (
+              <Marker
+                key={index}
+                coordinate={{
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                }}
+                title={route.routeName}
+                description={point.address}
+              />
+            ))
+          )
+        ))}
       </MapView>
     </View>
   );

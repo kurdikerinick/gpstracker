@@ -1,96 +1,108 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import { getDatabase, ref, query, orderByChild, equalTo, get } from 'firebase/database';
-import { db } from '../firebase.js';
-import { getAuth, sendEmailVerification } from 'firebase/auth';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { db } from '../firebase';
+import { ref, orderByChild, equalTo, get, query } from 'firebase/database';
+import { useNavigation } from '@react-navigation/native';
 
-export default function LoginScreen() {
+const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState(null);
+  const navigation = useNavigation();
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
+    matchStudent(email, studentNumber);
+  };
+
+  const matchStudent = async (email, studentNumber) => {
     try {
-      const auth = getAuth();
-      
-      // Check if there's a currently logged-in user
-      if (!auth.currentUser) {
-        console.log('No user logged in');
-        setError('No user logged in');
-        return; // Prevent further execution
-      }
+      const studentsRef = ref(db, 'students');
+      const studentsQuery = query(studentsRef, orderByChild('email'), equalTo(email));
 
-      const studentsRef = ref(db, '/students');
-      const queryRef = query(studentsRef, orderByChild('email'), equalTo(email));
-      const snapshot = await get(queryRef);
-
+      const snapshot = await get(studentsQuery);
       if (snapshot.exists()) {
-        const userData = snapshot.val();
-        const userId = Object.keys(userData)[0];
-        const user = userData[userId];
-
-        // Check if the email is verified
-        if (!auth.currentUser.emailVerified) {
-          console.log('Email not verified');
-          setError('Email not verified');
-          return; // Prevent further execution
-        }
-
-        if (user.studentNumber === studentNumber) {
-          console.log('Login successful');
-          // Navigate to the desired screen upon successful login
-        } else {
-          console.log('Incorrect student number');
-          setError('Incorrect student number');
+        let matchFound = false;
+        snapshot.forEach((childSnapshot) => {
+          const student = childSnapshot.val();
+          if (student.studentNumber === studentNumber) {
+            matchFound = true;
+            console.log('Match found:', student);
+            navigation.navigate('home', { routeId: student.routeId, routeName: student.routeName });
+          }
+        });
+        if (!matchFound) {
+          setErrorMessage('Student number does not match the provided email');
         }
       } else {
-        console.log('User not found');
-        setError('User not found');
+        setErrorMessage('No matching student found with the provided email');
       }
     } catch (error) {
-      console.error('Error logging in: ', error.message);
-      setError('Error logging in');
+      console.error('Error matching student:', error);
+      setErrorMessage('An error occurred. Please try again.');
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text>Email Login</Text>
+      <Text style={styles.title}>Student Login</Text>
+      {errorMessage && <Text style={styles.error}>{errorMessage}</Text>}
       <TextInput
+        style={styles.input}
         placeholder="Email"
         onChangeText={setEmail}
         value={email}
-        style={styles.input}
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
       <TextInput
+        style={styles.input}
         placeholder="Student Number"
         onChangeText={setStudentNumber}
         value={studentNumber}
         keyboardType="numeric"
-        style={styles.input}
       />
-      <Button title="Login" onPress={handleLogin} />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <TouchableOpacity onPress={handleLogin} style={styles.button}>
+        <Text style={styles.buttonText}>Login</Text>
+      </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 20,
   },
   input: {
-    width: '80%',
-    padding: 10,
-    marginBottom: 10,
+    width: '100%',
+    height: 40,
+    borderColor: 'gray',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
   error: {
     color: 'red',
+    marginBottom: 10,
+  },
+  button: {
+    backgroundColor: 'black',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
     marginTop: 10,
   },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+  },
 });
+
+export default LoginScreen;

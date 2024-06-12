@@ -1,59 +1,73 @@
-import React, { useState } from 'react';
-import { View, TextInput, Pressable, Alert, Text } from 'react-native';
-import { ref, push, set } from 'firebase/database';
-import { db } from '../firebase';// Assuming firebase.js is where you initialize Firebase
+// MapScreen.js
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView } from 'react-native';
+import { getDatabase, ref, get } from 'firebase/database';
 
-export default function SaveLocationScreen() {
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [address, setAddress] = useState('');
+const MapScreen = ({ route }) => {
+  const { routeName } = route.params;
+  console.log(routeName)
+  const [routeData, setRouteData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const saveLocationToFirebase = () => {
-    const locationsRef = ref(db, 'locations'); // Use the Firebase database instance from firebase.js
+  useEffect(() => {
+    if (!routeName) {
+      setError('Route name not provided');
+      return;
+    }
 
-    const newLocationKey = push(locationsRef).key;
-    const locationData = {
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      address: address,
+    const fetchRoute = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const db = getDatabase();
+        const routeRef = ref(db, `routes/${routeName}`);
+        const snapshot = await get(routeRef);
+
+        if (snapshot.exists()) {
+          setRouteData(snapshot.val());
+        } else {
+          setError(`Route '${routeName}' not found`);
+        }
+      } catch (error) {
+        console.error('Error fetching route:', error);
+        setError('Error fetching route data');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    set(ref(db, `locations/${newLocationKey}`), locationData)
-      .then(() => {
-        Alert.alert('Success', 'Location saved successfully!');
-        console.log("saved")
-      })
-      .catch((error) => {
-        Alert.alert('Error', 'Failed to save location: ' + error.message);
-        console.log("error")
-      });
-  };
+    fetchRoute();
+  }, [routeName]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <TextInput
-        placeholder="Latitude"
-        value={latitude}
-        onChangeText={setLatitude}
-        keyboardType="numeric"
-        style={{ marginBottom: 10, padding: 10, borderWidth: 1 }}
-      />
-      <TextInput
-        placeholder="Longitude"
-        value={longitude}
-        onChangeText={setLongitude}
-        keyboardType="numeric"
-        style={{ marginBottom: 10, padding: 10, borderWidth: 1 }}
-      />
-      <TextInput
-        placeholder="Address"
-        value={address}
-        onChangeText={setAddress}
-        style={{ marginBottom: 10, padding: 10, borderWidth: 1 }}
-      />
-      <Pressable onPress={saveLocationToFirebase}>
-        <Text>Save Location</Text>
-      </Pressable>
+    <View>
+      {loading && <Text>Loading route data...</Text>}
+      {error && <Text>Error: {error}</Text>}
+
+      {routeData && (
+        <ScrollView>
+          <Text>Route: {routeName}</Text>
+          <View>
+            <Text>Points:</Text>
+            {Object.keys(routeData.points).map((pointKey, index) => {
+              const point = routeData.points[pointKey];
+              return (
+                <View key={pointKey}>
+                  <Text>
+                    <Text style={{ fontWeight: 'bold' }}>Point {index + 1}:</Text>{'\n'}
+                    Latitude: {point.latitude}{'\n'}
+                    Longitude: {point.longitude}{'\n'}
+                    Address: {point.address}{'\n'}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
-}
+};
+
+export default MapScreen;

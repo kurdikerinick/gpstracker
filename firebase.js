@@ -1,8 +1,10 @@
-import { getDatabase, ref, update, push, set,get, onValue as firebaseOnValue  } from 'firebase/database'; // Import necessary functions for Realtime Database
+import { getDatabase, ref, update, push, set, get, onValue } from 'firebase/database';
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth'; // Import getAuth function from firebase/auth
-import { getStorage } from 'firebase/storage'; // Import the getStorage function
+import { getAuth } from 'firebase/auth'; 
+import { getStorage } from 'firebase/storage'; 
 import 'firebase/auth';
+
+
 const firebaseConfig = {
   apiKey: "AIzaSyAFJXVS67agokw7MjFTwWq87tbV-ZEy_pA",
   authDomain: "gpstracking-c79db.firebaseapp.com",
@@ -15,11 +17,8 @@ const firebaseConfig = {
 
 
 const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase services
 const auth = getAuth(app);
 const storage = getStorage(app);
 const db = getDatabase(app);
 
-// Export necessary Firebase objects and functions
-export { app, db, auth, storage, update,push, ref, set,get , firebaseOnValue as onValue };
+export { app, db, auth, storage, update, push, ref, set, get, onValue }; 
